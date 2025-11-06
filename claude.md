@@ -1,5 +1,51 @@
 # 1 GW AI Datacenter Cooling System - Technical Implementation Guide
 
+## **IMPORTANT: Component-Level Thermodynamic Modeling (Refactored)**
+
+**Date**: 2025-11-06
+**Status**: ✅ Refactored to component-level thermodynamic modeling
+
+This project has been refactored from curve-based empirical models to **first-principles component-level thermodynamic modeling**. The new approach emphasizes:
+
+### Key Changes:
+
+1. **Refrigeration Cycle (Chiller)**
+   - **OLD**: ASHRAE performance curves (CapFT, EIRFT, EIRFPLR)
+   - **NEW**: Full vapor compression refrigeration cycle with CoolProp
+   - Refrigerant states at all cycle points (evaporator out, compressor out, condenser out, expansion valve)
+   - Heat exchanger modeling with effectiveness-NTU method
+   - Evaporator/condenser temperature pinch point constraints
+   - Refrigerant mass flow rate, pressure ratio, isentropic efficiency
+
+2. **Cooling Tower**
+   - **OLD**: Simple energy balance (Q = ṁ_evap × h_fg)
+   - **NEW**: Psychrometric analysis with air-side mass/energy balances
+   - Air inlet/outlet thermodynamic states (T_db, T_wb, w, h, RH)
+   - Dry air mass flow rate tracking
+   - Evaporation from change in air humidity ratio
+   - Energy balance verification: Q_water = Q_air
+
+3. **Mass and Energy Equilibrium**
+   - All components verify mass/energy balances at component level
+   - Thermodynamic state tracking for refrigerant, water, and air
+   - Iterative solution for consistent evaporator/condenser temperatures
+   - Pinch point constraints at heat exchangers
+
+### Required Dependencies:
+```
+CoolProp>=6.5.0  # Refrigerant thermodynamic properties
+scipy>=1.10.0    # Optimization and solvers
+```
+
+### New Modules:
+- `src/psychrometrics.py`: Moist air thermodynamic properties
+- `src/refrigerant_cycle.py`: Vapor compression cycle and heat exchangers
+
+### Testing:
+Run `python test_refactored_system.py` to verify all components.
+
+---
+
 ## Development Guidelines
 
 ### Claude Model Configuration
