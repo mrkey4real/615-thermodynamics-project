@@ -1,5 +1,164 @@
 # 1 GW AI Datacenter Cooling System - Technical Implementation Guide
 
+## Development Guidelines
+
+### Claude Model Configuration
+
+**Required Model**: Claude Sonnet 4.5 with extended thinking enabled
+
+**Model Settings**:
+- Model: `claude-sonnet-4.5` (or newer)
+- Thinking mode: `extended` (for complex thermodynamic calculations and system design)
+- Use extended thinking for:
+  - System architecture decisions
+  - Energy balance verification
+  - Optimization strategy development
+  - Complex multi-component interactions
+  - Debugging convergence issues
+
+**Rationale**: Extended thinking mode is essential for this project due to the complexity of coupled thermodynamic systems, iterative solvers, and the need for careful validation of energy balances across multiple interconnected components.
+
+### Coding Requirements
+
+**1. Read CLAUDE.md at Session Start**
+- Always review this file when beginning work to understand project context and coding standards
+- Familiarize yourself with the system architecture, component models, and implementation details
+- Understand the project requirements and constraints before making changes
+
+**2. Keep Documentation Synchronized**
+When making functional changes to code:
+- Update this CLAUDE.md file to reflect architectural or workflow changes
+- Update related documentation files (README, docstrings, comments)
+- Ensure consistency between code behavior and documented behavior
+- Document any changes to energy balance equations or performance models
+- Update validation criteria if constraints change
+
+**3. English-Only Code**
+All code, comments, and documentation must be written in English, including:
+- Variable and function names (e.g., `calculate_evaporation_rate`, not `计算蒸发率`)
+- Code comments and docstrings
+- Inline footnotes and annotations
+- Documentation files
+- Commit messages and PR descriptions
+- Error messages and logging output
+
+**4. Clean Up Test Code**
+Once development and testing are complete:
+- Remove temporary test code, debug prints, and experimental snippets
+- Only retain test code if it serves ongoing validation purposes
+- Ask before removing if unsure whether test code is still needed
+- Keep formal unit tests in the `tests/` directory
+- Remove commented-out code blocks unless they document important alternatives
+
+**5. Explicit Error Handling**
+Be cautious with error-suppressing patterns to ensure issues surface early:
+
+**Problematic Patterns**:
+- **`.get()` method**: Using dictionary `.get(key, default)` can hide missing keys
+  ```python
+  # Problematic - silently uses default if 'coc' is missing
+  coc = config.get('coc', 5.0)
+
+  # Better - fails explicitly if configuration is incomplete
+  if 'coc' not in config:
+      raise ValueError("Configuration missing required parameter: 'coc'")
+  coc = config['coc']
+  ```
+
+- **Broad `try...except`**: Catching exceptions without specific handling can mask bugs
+  ```python
+  # Problematic - hides all errors
+  try:
+      result = calculate_chiller_cop(plr, t_cw_in)
+  except:
+      result = 6.0  # arbitrary default
+
+  # Better - handle specific expected errors
+  try:
+      result = calculate_chiller_cop(plr, t_cw_in)
+  except ValueError as e:
+      raise ValueError(f"Invalid chiller operating conditions: {e}")
+  ```
+
+- **Default values**: Setting defaults for critical parameters can hide configuration issues
+  ```python
+  # Problematic - may hide misconfiguration
+  def __init__(self, rated_capacity_mw=1000, rated_cop=6.1):
+
+  # Better - require explicit configuration
+  def __init__(self, rated_capacity_mw, rated_cop):
+      if rated_capacity_mw <= 0:
+          raise ValueError(f"Invalid capacity: {rated_capacity_mw}")
+  ```
+
+**When to use these patterns**:
+- Inform the user explicitly when using these approaches and explain why they're necessary
+- Acceptable for truly optional parameters with well-justified defaults
+- Acceptable when handling known, expected conditions (e.g., file not found for optional config)
+- Document the reasoning in code comments
+
+**Preferred approaches**:
+- Use `if key in dict:` for explicit key checking
+- Use specific exception types (`ValueError`, `FileNotFoundError`) instead of bare `except`
+- Validate input parameters explicitly at function entry
+- Raise informative errors early rather than propagating invalid states
+
+**Goal**: Surface issues early in development rather than silently using fallback values that may mask underlying problems in the thermodynamic model.
+
+**6. Efficient Code**
+Do not abuse code volume and make sure the code is necessary:
+
+**Principles**:
+- **Avoid over-engineering**: One function should handle one clear responsibility
+- **Don't inflate code**: Avoid dozens of helper functions that are used only once
+  ```python
+  # Problematic - unnecessary abstraction
+  def get_water_cp():
+      return 4186
+
+  def get_air_cp():
+      return 1005
+
+  # Better - use constants or properties
+  CP_WATER = 4186  # J/(kg·K)
+  CP_AIR = 1005    # J/(kg·K)
+  ```
+
+- **Minimize redundant abstractions**: Readability and maintainability come before excessive modularization
+- **Keep modules self-contained**: Each module should have a clear, focused purpose
+- **Prioritize clarity**: Code should be easy to understand and modify
+- **Efficiency matters**: Optimize for performance in iterative solvers and large-scale simulations
+- **Ease of maintenance**: Future developers should understand the code without archaeological investigation
+
+**Guidelines**:
+- Strive for clean, minimal, and performant design
+- Fewer lines that do more work, predictably and transparently
+- Prefer straightforward implementations over clever abstractions
+- Extract helper functions only when they improve readability or are reused multiple times
+- Balance DRY (Don't Repeat Yourself) with simplicity - small amounts of duplication can be acceptable if it improves clarity
+
+**Example**:
+```python
+# Over-engineered - unnecessary abstraction layers
+class TemperatureValidator:
+    def validate(self, temp, min_temp, max_temp):
+        return min_temp <= temp <= max_temp
+
+class GPULoadValidator:
+    def __init__(self):
+        self.temp_validator = TemperatureValidator()
+
+    def validate_gpu_temp(self, temp):
+        return self.temp_validator.validate(temp, 0, 40)
+
+# Simple and clear - appropriate for this case
+def check_temperature_constraint(self, T_out):
+    """Verify outlet temperature meets constraint: T_out ≤ 40°C"""
+    return T_out <= self.max_temp
+```
+
+---
+
 ## Project Overview
 
 **Objective**: Design and model a system-level cooling architecture for a 1 GW AI datacenter with energy balance calculations for each component, PUE/WUE analysis, and optimization strategies.
