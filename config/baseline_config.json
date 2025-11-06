@@ -1,0 +1,27 @@
+{
+  "description": "Baseline configuration for 1 GW datacenter cooling system",
+  "scenario": "baseline",
+  "gpu_model": "NVIDIA B200",
+  "tdp_per_gpu": 1200,
+  "gpu_load_mw": 900,
+  "building_load_mw": 100,
+  "gpu_max_temp": 40.0,
+  "building_max_temp": 25.0,
+  "chiller_rated_capacity_mw": 1000,
+  "chiller_rated_cop": 6.1,
+  "chiller_curves_file": "data/ashrae_curves.json",
+  "cooling_tower_approach": 4.0,
+  "coc": 5.0,
+  "drift_rate": 1e-05,
+  "t_chw_supply": 10.0,
+  "t_gpu_in": 15.0,
+  "t_air_in": 20.0,
+  "t_wb_ambient": 25.5,
+  "use_optimized_tower": false,
+  "comments": {
+    "gpu_load": "90% of total IT load (900 MW)",
+    "building_load": "10% of total IT load (100 MW) - air-cooled equipment",
+    "coc": "Cycles of concentration = 5 (baseline)",
+    "t_wb_ambient": "Design wet bulb temperature for cooling tower"
+  }
+}
