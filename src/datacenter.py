@@ -218,9 +218,11 @@ class DataCenter:
             self.state_points['T4_chw_return'] = chiller_result['T_chw_return_C']
 
             # Condenser water loop
-            self.state_points['T8_cw_from_tower'] = tower_result['T_out_C']
+            # Handle both old (T_out_C) and new (T_water_out_C) field names
+            t_cw_from_tower = tower_result.get('T_water_out_C', tower_result.get('T_out_C'))
+            self.state_points['T8_cw_from_tower'] = t_cw_from_tower
             self.state_points['T9_cw_from_chiller'] = chiller_result['T_cw_out_C']
-            self.state_points['T10_cw_to_chiller'] = self.state_points['T8_cw_from_tower']
+            self.state_points['T10_cw_to_chiller'] = t_cw_from_tower
 
             # GPU loop
             t_gpu_out = self.gpu_load.calculate_outlet_temp(
