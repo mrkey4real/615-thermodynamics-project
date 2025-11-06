@@ -9,6 +9,7 @@ Supports R134a (common in water-cooled chillers).
 
 try:
     from CoolProp.CoolProp import PropsSI
+
     COOLPROP_AVAILABLE = True
 except ImportError:
     COOLPROP_AVAILABLE = False
@@ -27,7 +28,7 @@ class RefrigerantState:
     - T, Q (temperature, quality for two-phase)
     """
 
-    def __init__(self, fluid='R134a', **kwargs):
+    def __init__(self, fluid="R134a", **kwargs):
         """
         Initialize refrigerant state from two independent properties.
 
@@ -46,14 +47,18 @@ class RefrigerantState:
         self.fluid = fluid
 
         if not COOLPROP_AVAILABLE:
-            raise ImportError("CoolProp is required for refrigerant properties. Install with: pip install CoolProp")
+            raise ImportError(
+                "CoolProp is required for refrigerant properties. Install with: pip install CoolProp"
+            )
 
         # Count specified properties
-        valid_props = ['P', 'T', 'h', 's', 'Q']
+        valid_props = ["P", "T", "h", "s", "Q"]
         specified = {k: v for k, v in kwargs.items() if k in valid_props and v is not None}
 
         if len(specified) != 2:
-            raise ValueError(f"Exactly two properties required, got {len(specified)}: {list(specified.keys())}")
+            raise ValueError(
+                f"Exactly two properties required, got {len(specified)}: {list(specified.keys())}"
+            )
 
         # Store the specified properties
         for key, value in specified.items():
@@ -71,11 +76,11 @@ class RefrigerantState:
         """
         # Map our property names to CoolProp names
         prop_map = {
-            'P': 'P',      # Pressure
-            'T': 'T',      # Temperature
-            'h': 'H',      # Enthalpy (mass basis)
-            's': 'S',      # Entropy (mass basis)
-            'Q': 'Q'       # Quality
+            "P": "P",  # Pressure
+            "T": "T",  # Temperature
+            "h": "H",  # Enthalpy (mass basis)
+            "s": "S",  # Entropy (mass basis)
+            "Q": "Q",  # Quality
         }
 
         # Get the two input properties in CoolProp format
@@ -87,15 +92,19 @@ class RefrigerantState:
 
         # Calculate all properties
         try:
-            self.P = PropsSI('P', input1_name, input1_value, input2_name, input2_value, self.fluid)
-            self.T = PropsSI('T', input1_name, input1_value, input2_name, input2_value, self.fluid)
-            self.h = PropsSI('H', input1_name, input1_value, input2_name, input2_value, self.fluid)
-            self.s = PropsSI('S', input1_name, input1_value, input2_name, input2_value, self.fluid)
-            self.rho = PropsSI('D', input1_name, input1_value, input2_name, input2_value, self.fluid)
+            self.P = PropsSI("P", input1_name, input1_value, input2_name, input2_value, self.fluid)
+            self.T = PropsSI("T", input1_name, input1_value, input2_name, input2_value, self.fluid)
+            self.h = PropsSI("H", input1_name, input1_value, input2_name, input2_value, self.fluid)
+            self.s = PropsSI("S", input1_name, input1_value, input2_name, input2_value, self.fluid)
+            self.rho = PropsSI(
+                "D", input1_name, input1_value, input2_name, input2_value, self.fluid
+            )
 
             # Quality (Q) is only defined in two-phase region
             try:
-                self.Q = PropsSI('Q', input1_name, input1_value, input2_name, input2_value, self.fluid)
+                self.Q = PropsSI(
+                    "Q", input1_name, input1_value, input2_name, input2_value, self.fluid
+                )
             except:
                 self.Q = None  # Subcooled liquid or superheated vapor
 
@@ -113,35 +122,35 @@ class RefrigerantState:
             str: 'subcooled_liquid', 'two_phase', 'superheated_vapor', 'supercritical'
         """
         if self.Q is not None and 0 <= self.Q <= 1:
-            return 'two_phase'
+            return "two_phase"
 
         # Get critical pressure
-        P_crit = PropsSI('PCRIT', self.fluid)
+        P_crit = PropsSI("PCRIT", self.fluid)
 
         if self.P > P_crit:
-            return 'supercritical'
+            return "supercritical"
 
         # Get saturation temperature at this pressure
         try:
-            T_sat = PropsSI('T', 'P', self.P, 'Q', 0, self.fluid)
+            T_sat = PropsSI("T", "P", self.P, "Q", 0, self.fluid)
 
             if self.T < T_sat - 0.1:  # 0.1 K tolerance
-                return 'subcooled_liquid'
+                return "subcooled_liquid"
             elif self.T > T_sat + 0.1:
-                return 'superheated_vapor'
+                return "superheated_vapor"
             else:
-                return 'saturated'
+                return "saturated"
         except:
             # If we can't determine, use enthalpy
-            h_sat_liq = PropsSI('H', 'P', self.P, 'Q', 0, self.fluid)
-            h_sat_vap = PropsSI('H', 'P', self.P, 'Q', 1, self.fluid)
+            h_sat_liq = PropsSI("H", "P", self.P, "Q", 0, self.fluid)
+            h_sat_vap = PropsSI("H", "P", self.P, "Q", 1, self.fluid)
 
             if self.h < h_sat_liq:
-                return 'subcooled_liquid'
+                return "subcooled_liquid"
             elif self.h > h_sat_vap:
-                return 'superheated_vapor'
+                return "superheated_vapor"
             else:
-                return 'two_phase'
+                return "two_phase"
 
     def to_celsius(self):
         """Return temperature in Celsius."""
@@ -162,11 +171,15 @@ class RefrigerantState:
         h_kJ = self.to_kJ_per_kg()
 
         if self.Q is not None:
-            return (f"RefrigerantState({self.fluid}, {self.phase}, "
-                   f"P={P_bar:.2f} bar, T={T_C:.1f}°C, h={h_kJ:.1f} kJ/kg, Q={self.Q:.3f})")
+            return (
+                f"RefrigerantState({self.fluid}, {self.phase}, "
+                f"P={P_bar:.2f} bar, T={T_C:.1f}°C, h={h_kJ:.1f} kJ/kg, Q={self.Q:.3f})"
+            )
         else:
-            return (f"RefrigerantState({self.fluid}, {self.phase}, "
-                   f"P={P_bar:.2f} bar, T={T_C:.1f}°C, h={h_kJ:.1f} kJ/kg)")
+            return (
+                f"RefrigerantState({self.fluid}, {self.phase}, "
+                f"P={P_bar:.2f} bar, T={T_C:.1f}°C, h={h_kJ:.1f} kJ/kg)"
+            )
 
 
 class RefrigerantCycle:
@@ -179,7 +192,7 @@ class RefrigerantCycle:
     - Evaporation and condensation at constant pressure
     """
 
-    def __init__(self, fluid='R134a'):
+    def __init__(self, fluid="R134a"):
         """
         Initialize refrigerant cycle helper.
 
@@ -262,7 +275,7 @@ class RefrigerantCycle:
         Returns:
             T_sat: Saturation temperature (K)
         """
-        return PropsSI('T', 'P', P, 'Q', 0, self.fluid)
+        return PropsSI("T", "P", P, "Q", 0, self.fluid)
 
     def saturation_pressure(self, T):
         """
@@ -274,7 +287,7 @@ class RefrigerantCycle:
         Returns:
             P_sat: Saturation pressure (Pa)
         """
-        return PropsSI('P', 'T', T, 'Q', 0, self.fluid)
+        return PropsSI("P", "T", T, "Q", 0, self.fluid)
 
 
 def test_refrigerant_properties():
@@ -285,20 +298,20 @@ def test_refrigerant_properties():
         print("CoolProp not available. Skipping refrigerant tests.")
         return
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("REFRIGERANT PROPERTIES TEST - R134a VAPOR COMPRESSION CYCLE")
-    print("="*70)
+    print("=" * 70)
 
-    cycle = RefrigerantCycle('R134a')
+    cycle = RefrigerantCycle("R134a")
 
     # Define cycle conditions
-    T_evap_C = 5.0      # Evaporator temperature (°C)
-    T_cond_C = 40.0     # Condenser temperature (°C)
-    subcool_C = 5.0     # Subcooling (°C)
-    superheat_C = 5.0   # Superheat (°C)
-    eta_comp = 0.85     # Compressor isentropic efficiency
+    T_evap_C = 5.0  # Evaporator temperature (°C)
+    T_cond_C = 40.0  # Condenser temperature (°C)
+    subcool_C = 5.0  # Subcooling (°C)
+    superheat_C = 5.0  # Superheat (°C)
+    eta_comp = 0.85  # Compressor isentropic efficiency
 
-    print(f"\nCycle Conditions:")
+    print("\nCycle Conditions:")
     print(f"  Evaporator temperature: {T_evap_C}°C")
     print(f"  Condenser temperature: {T_cond_C}°C")
     print(f"  Subcooling: {subcool_C}°C")
@@ -308,26 +321,26 @@ def test_refrigerant_properties():
     # State 1: Compressor inlet (superheated vapor)
     T1_K = (T_evap_C + superheat_C) + 273.15
     P1 = cycle.saturation_pressure(T_evap_C + 273.15)
-    state1 = RefrigerantState('R134a', P=P1, T=T1_K)
-    print(f"\nState 1 (Compressor Inlet - Superheated Vapor):")
+    state1 = RefrigerantState("R134a", P=P1, T=T1_K)
+    print("\nState 1 (Compressor Inlet - Superheated Vapor):")
     print(f"  {state1}")
 
     # State 2: Compressor outlet (superheated vapor, high pressure)
     P2 = cycle.saturation_pressure(T_cond_C + 273.15)
     state2, w_comp = cycle.actual_compression(state1, P2, eta_comp)
-    print(f"\nState 2 (Compressor Outlet - Superheated Vapor):")
+    print("\nState 2 (Compressor Outlet - Superheated Vapor):")
     print(f"  {state2}")
     print(f"  Specific work: {w_comp/1e3:.1f} kJ/kg")
 
     # State 3: Condenser outlet (subcooled liquid)
     T3_K = (T_cond_C - subcool_C) + 273.15
-    state3 = RefrigerantState('R134a', P=P2, T=T3_K)
-    print(f"\nState 3 (Condenser Outlet - Subcooled Liquid):")
+    state3 = RefrigerantState("R134a", P=P2, T=T3_K)
+    print("\nState 3 (Condenser Outlet - Subcooled Liquid):")
     print(f"  {state3}")
 
     # State 4: Expansion valve outlet (two-phase, low pressure)
     state4 = cycle.isenthalpic_expansion(state3, P1)
-    print(f"\nState 4 (Expansion Valve Outlet - Two-Phase):")
+    print("\nState 4 (Expansion Valve Outlet - Two-Phase):")
     print(f"  {state4}")
 
     # Calculate cycle performance
@@ -335,15 +348,17 @@ def test_refrigerant_properties():
     q_cond = state2.h - state3.h  # Heat rejection (J/kg)
     COP = q_evap / w_comp
 
-    print(f"\nCycle Performance:")
+    print("\nCycle Performance:")
     print(f"  Cooling effect (q_evap): {q_evap/1e3:.1f} kJ/kg")
     print(f"  Heat rejection (q_cond): {q_cond/1e3:.1f} kJ/kg")
     print(f"  Compressor work: {w_comp/1e3:.1f} kJ/kg")
     print(f"  COP: {COP:.2f}")
-    print(f"  Energy balance check: q_evap + w = {(q_evap+w_comp)/1e3:.1f} kJ/kg, q_cond = {q_cond/1e3:.1f} kJ/kg")
+    print(
+        f"  Energy balance check: q_evap + w = {(q_evap+w_comp)/1e3:.1f} kJ/kg, q_cond = {q_cond/1e3:.1f} kJ/kg"
+    )
     print(f"  Balance error: {abs(q_evap+w_comp-q_cond)/q_cond*100:.4f}%")
 
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ Based on:
 
 try:
     from CoolProp.CoolProp import PropsSI
+
     COOLPROP_AVAILABLE = True
 except ImportError:
     COOLPROP_AVAILABLE = False
@@ -61,13 +62,15 @@ class RefrigerantState:
             props[key] = value
 
         # Convert temperature from °C to K if provided
-        if 'T' in props:
-            props['T_K'] = props['T'] + 273.15
-            del props['T']
+        if "T" in props:
+            props["T_K"] = props["T"] + 273.15
+            del props["T"]
 
         # Determine which properties were provided
         if len(props) != 2:
-            raise ValueError(f"Exactly 2 properties required, got {len(props)}: {list(props.keys())}")
+            raise ValueError(
+                f"Exactly 2 properties required, got {len(props)}: {list(props.keys())}"
+            )
 
         # Calculate state using CoolProp
         self._calculate_state(props)
@@ -76,7 +79,7 @@ class RefrigerantState:
         """Validate that refrigerant is supported by CoolProp."""
         try:
             # Test if refrigerant is valid
-            PropsSI('Tcrit', self.refrigerant)
+            PropsSI("Tcrit", self.refrigerant)
         except Exception as e:
             raise ValueError(f"Invalid refrigerant '{self.refrigerant}': {e}")
 
@@ -88,13 +91,7 @@ class RefrigerantState:
             props: Dictionary with two properties
         """
         # Map property names to CoolProp inputs
-        prop_map = {
-            'P': 'P',
-            'T_K': 'T',
-            'h': 'H',
-            's': 'S',
-            'Q': 'Q'
-        }
+        prop_map = {"P": "P", "T_K": "T", "h": "H", "s": "S", "Q": "Q"}
 
         # Get the two input properties
         keys = list(props.keys())
@@ -105,14 +102,26 @@ class RefrigerantState:
 
         # Calculate all properties
         try:
-            self.P = PropsSI('P', input1_name, input1_val, input2_name, input2_val, self.refrigerant)
-            self.T_K = PropsSI('T', input1_name, input1_val, input2_name, input2_val, self.refrigerant)
-            self.h = PropsSI('H', input1_name, input1_val, input2_name, input2_val, self.refrigerant)
-            self.s = PropsSI('S', input1_name, input1_val, input2_name, input2_val, self.refrigerant)
-            self.rho = PropsSI('D', input1_name, input1_val, input2_name, input2_val, self.refrigerant)
+            self.P = PropsSI(
+                "P", input1_name, input1_val, input2_name, input2_val, self.refrigerant
+            )
+            self.T_K = PropsSI(
+                "T", input1_name, input1_val, input2_name, input2_val, self.refrigerant
+            )
+            self.h = PropsSI(
+                "H", input1_name, input1_val, input2_name, input2_val, self.refrigerant
+            )
+            self.s = PropsSI(
+                "S", input1_name, input1_val, input2_name, input2_val, self.refrigerant
+            )
+            self.rho = PropsSI(
+                "D", input1_name, input1_val, input2_name, input2_val, self.refrigerant
+            )
 
             # Quality (0-1 for two-phase, -1 for subcooled, >1 for superheated)
-            self.Q = PropsSI('Q', input1_name, input1_val, input2_name, input2_val, self.refrigerant)
+            self.Q = PropsSI(
+                "Q", input1_name, input1_val, input2_name, input2_val, self.refrigerant
+            )
 
             # Store temperature in Celsius for convenience
             self.T_C = self.T_K - 273.15
@@ -132,9 +141,11 @@ class RefrigerantState:
 
     def __repr__(self):
         """String representation of refrigerant state."""
-        return (f"RefrigerantState({self.refrigerant}: "
-                f"P={self.P/1000:.1f} kPa, T={self.T_C:.1f}°C, "
-                f"h={self.h/1000:.1f} kJ/kg, {self.phase})")
+        return (
+            f"RefrigerantState({self.refrigerant}: "
+            f"P={self.P/1000:.1f} kPa, T={self.T_C:.1f}°C, "
+            f"h={self.h/1000:.1f} kJ/kg, {self.phase})"
+        )
 
 
 class VaporCompressionCycle:
@@ -155,7 +166,7 @@ class VaporCompressionCycle:
         COP = Q_evap / W_comp
     """
 
-    def __init__(self, refrigerant='R134a', eta_is_comp=0.80, superheat_evap=5.0, subcool_cond=3.0):
+    def __init__(self, refrigerant="R134a", eta_is_comp=0.80, superheat_evap=5.0, subcool_cond=3.0):
         """
         Initialize vapor compression cycle.
 
@@ -189,10 +200,10 @@ class VaporCompressionCycle:
 
         # Performance metrics
         self.m_dot_ref = None  # Refrigerant mass flow rate (kg/s)
-        self.Q_evap = None     # Evaporator cooling capacity (W)
-        self.W_comp = None     # Compressor power (W)
-        self.Q_cond = None     # Condenser heat rejection (W)
-        self.COP = None        # Coefficient of performance
+        self.Q_evap = None  # Evaporator cooling capacity (W)
+        self.W_comp = None  # Compressor power (W)
+        self.Q_cond = None  # Condenser heat rejection (W)
+        self.COP = None  # Coefficient of performance
 
     def solve(self, T_evap_C, T_cond_C, Q_evap_required):
         """
@@ -215,8 +226,8 @@ class VaporCompressionCycle:
             raise ValueError(f"Cooling capacity must be positive, got {Q_evap_required}")
 
         # Calculate saturation pressures
-        P_evap = PropsSI('P', 'T', T_evap_C + 273.15, 'Q', 1.0, self.refrigerant)
-        P_cond = PropsSI('P', 'T', T_cond_C + 273.15, 'Q', 0.0, self.refrigerant)
+        P_evap = PropsSI("P", "T", T_evap_C + 273.15, "Q", 1.0, self.refrigerant)
+        P_cond = PropsSI("P", "T", T_cond_C + 273.15, "Q", 0.0, self.refrigerant)
 
         # State 1: Evaporator outlet (superheated vapor)
         T1_C = T_evap_C + self.superheat_evap
@@ -250,22 +261,22 @@ class VaporCompressionCycle:
         energy_balance_error = abs(self.Q_cond - (self.Q_evap + self.W_comp)) / self.Q_cond
 
         return {
-            'refrigerant': self.refrigerant,
-            'm_dot_ref_kg_s': self.m_dot_ref,
-            'Q_evap_W': self.Q_evap,
-            'W_comp_W': self.W_comp,
-            'Q_cond_W': self.Q_cond,
-            'COP': self.COP,
-            'P_evap_Pa': P_evap,
-            'P_cond_Pa': P_cond,
-            'T_evap_C': T_evap_C,
-            'T_cond_C': T_cond_C,
-            'compression_ratio': P_cond / P_evap,
-            'energy_balance_error': energy_balance_error,
-            'state1': self.state1,
-            'state2': self.state2,
-            'state3': self.state3,
-            'state4': self.state4
+            "refrigerant": self.refrigerant,
+            "m_dot_ref_kg_s": self.m_dot_ref,
+            "Q_evap_W": self.Q_evap,
+            "W_comp_W": self.W_comp,
+            "Q_cond_W": self.Q_cond,
+            "COP": self.COP,
+            "P_evap_Pa": P_evap,
+            "P_cond_Pa": P_cond,
+            "T_evap_C": T_evap_C,
+            "T_cond_C": T_cond_C,
+            "compression_ratio": P_cond / P_evap,
+            "energy_balance_error": energy_balance_error,
+            "state1": self.state1,
+            "state2": self.state2,
+            "state3": self.state3,
+            "state4": self.state4,
         }
 
     def print_cycle_summary(self):
@@ -274,27 +285,31 @@ class VaporCompressionCycle:
             print("Cycle not solved yet. Call solve() first.")
             return
 
-        print("\n" + "="*90)
+        print("\n" + "=" * 90)
         print("VAPOR COMPRESSION REFRIGERATION CYCLE")
-        print("="*90)
+        print("=" * 90)
         print(f"\nRefrigerant: {self.refrigerant}")
         print(f"Compressor Isentropic Efficiency: {self.eta_is_comp*100:.1f}%")
 
         print("\n--- STATE POINTS ---")
-        print(f"{'State':<10} {'Description':<25} {'P (kPa)':<12} {'T (°C)':<10} {'h (kJ/kg)':<12} {'Phase':<20}")
+        print(
+            f"{'State':<10} {'Description':<25} {'P (kPa)':<12} {'T (°C)':<10} {'h (kJ/kg)':<12} {'Phase':<20}"
+        )
         print("-" * 90)
 
         states = [
             (1, "Evaporator Out / Comp In", self.state1),
-            ('2s', "Compressor Out (Isentropic)", self.state2s),
+            ("2s", "Compressor Out (Isentropic)", self.state2s),
             (2, "Compressor Out (Actual)", self.state2),
             (3, "Condenser Out / Valve In", self.state3),
-            (4, "Valve Out / Evaporator In", self.state4)
+            (4, "Valve Out / Evaporator In", self.state4),
         ]
 
         for num, desc, state in states:
-            print(f"{str(num):<10} {desc:<25} {state.P/1000:<12.1f} {state.T_C:<10.2f} "
-                  f"{state.h/1000:<12.2f} {state.phase:<20}")
+            print(
+                f"{str(num):<10} {desc:<25} {state.P/1000:<12.1f} {state.T_C:<10.2f} "
+                f"{state.h/1000:<12.2f} {state.phase:<20}"
+            )
 
         print("\n--- PERFORMANCE ---")
         print(f"Refrigerant Mass Flow Rate:  {self.m_dot_ref:>10.3f} kg/s")
@@ -308,7 +323,7 @@ class VaporCompressionCycle:
         error = abs(self.Q_cond - (self.Q_evap + self.W_comp)) / self.Q_cond * 100
         print(f"Q_cond vs (Q_evap + W_comp): {error:.6f}% error")
 
-        print("="*90 + "\n")
+        print("=" * 90 + "\n")
 
 
 class HeatExchanger:
@@ -332,12 +347,14 @@ class HeatExchanger:
         if not 0.5 <= effectiveness <= 1.0:
             raise ValueError(f"Effectiveness {effectiveness} must be between 0.5 and 1.0")
         if fouling_resistance < 0:
-            raise ValueError(f"Fouling resistance must be non-negative")
+            raise ValueError("Fouling resistance must be non-negative")
 
         self.effectiveness = effectiveness
         self.fouling_resistance = fouling_resistance
 
-    def solve_counterflow(self, m_dot_hot, cp_hot, T_hot_in, m_dot_cold, cp_cold, T_cold_in, Q_target=None):
+    def solve_counterflow(
+        self, m_dot_hot, cp_hot, T_hot_in, m_dot_cold, cp_cold, T_cold_in, Q_target=None
+    ):
         """
         Solve counterflow heat exchanger.
 
@@ -403,23 +420,24 @@ class HeatExchanger:
 
         if delta_T1 > 0 and delta_T2 > 0:
             import math
+
             LMTD = (delta_T1 - delta_T2) / math.log(delta_T1 / delta_T2)
         else:
             LMTD = 0
 
         return {
-            'Q_W': Q_actual,
-            'Q_max_W': Q_max,
-            'effectiveness': epsilon_actual,
-            'T_hot_in_C': T_hot_in,
-            'T_hot_out_C': T_hot_out,
-            'T_cold_in_C': T_cold_in,
-            'T_cold_out_C': T_cold_out,
-            'LMTD_C': LMTD,
-            'C_hot': C_hot,
-            'C_cold': C_cold,
-            'C_min': C_min,
-            'C_ratio': C_ratio
+            "Q_W": Q_actual,
+            "Q_max_W": Q_max,
+            "effectiveness": epsilon_actual,
+            "T_hot_in_C": T_hot_in,
+            "T_hot_out_C": T_hot_out,
+            "T_cold_in_C": T_cold_in,
+            "T_cold_out_C": T_cold_out,
+            "LMTD_C": LMTD,
+            "C_hot": C_hot,
+            "C_cold": C_cold,
+            "C_min": C_min,
+            "C_ratio": C_ratio,
         }
 
 
@@ -429,27 +447,20 @@ def test_refrigeration_cycle():
         print("CoolProp not available. Skipping test.")
         return
 
-    print("\n" + "="*90)
+    print("\n" + "=" * 90)
     print("REFRIGERATION CYCLE TEST - Typical Water Chiller Conditions")
-    print("="*90)
+    print("=" * 90)
 
     # Create cycle
     cycle = VaporCompressionCycle(
-        refrigerant='R134a',
-        eta_is_comp=0.80,
-        superheat_evap=5.0,
-        subcool_cond=3.0
+        refrigerant="R134a", eta_is_comp=0.80, superheat_evap=5.0, subcool_cond=3.0
     )
 
     # Solve for typical chiller conditions
     # Evaporator: 5°C (chilled water at 10°C requires evap at ~5°C)
     # Condenser: 40°C (condenser water at 35°C requires cond at ~40°C)
     # Cooling capacity: 1 MW
-    result = cycle.solve(
-        T_evap_C=5.0,
-        T_cond_C=40.0,
-        Q_evap_required=1.0e6  # 1 MW
-    )
+    result = cycle.solve(T_evap_C=5.0, T_cond_C=40.0, Q_evap_required=1.0e6)  # 1 MW
 
     # Print results
     cycle.print_cycle_summary()
@@ -464,10 +475,10 @@ def test_refrigeration_cycle():
         m_dot_hot=m_dot_chw,
         cp_hot=4186,
         T_hot_in=15.0,
-        m_dot_cold=result['m_dot_ref_kg_s'],
+        m_dot_cold=result["m_dot_ref_kg_s"],
         cp_cold=1400,  # Approximate for R134a liquid
-        T_cold_in=result['state4'].T_C,
-        Q_target=result['Q_evap_W']
+        T_cold_in=result["state4"].T_C,
+        Q_target=result["Q_evap_W"],
     )
 
     print(f"Chilled Water: {evap_result['T_hot_in_C']:.1f}°C → {evap_result['T_hot_out_C']:.1f}°C")
@@ -479,23 +490,25 @@ def test_refrigeration_cycle():
     cond_hx = HeatExchanger(effectiveness=0.85)
 
     # Condenser water side: 29.5°C in, will heat up
-    m_dot_cw = result['Q_cond_W'] / (4186 * 5.5)  # kg/s, assuming 5.5°C rise
+    m_dot_cw = result["Q_cond_W"] / (4186 * 5.5)  # kg/s, assuming 5.5°C rise
     cond_result = cond_hx.solve_counterflow(
-        m_dot_hot=result['m_dot_ref_kg_s'],
+        m_dot_hot=result["m_dot_ref_kg_s"],
         cp_hot=1200,  # Approximate for R134a vapor
-        T_hot_in=result['state2'].T_C,
+        T_hot_in=result["state2"].T_C,
         m_dot_cold=m_dot_cw,
         cp_cold=4186,
         T_cold_in=29.5,
-        Q_target=result['Q_cond_W']
+        Q_target=result["Q_cond_W"],
     )
 
     print(f"Refrigerant: {cond_result['T_hot_in_C']:.1f}°C → {cond_result['T_hot_out_C']:.1f}°C")
-    print(f"Condenser Water: {cond_result['T_cold_in_C']:.1f}°C → {cond_result['T_cold_out_C']:.1f}°C")
+    print(
+        f"Condenser Water: {cond_result['T_cold_in_C']:.1f}°C → {cond_result['T_cold_out_C']:.1f}°C"
+    )
     print(f"Heat Transfer: {cond_result['Q_W']/1e6:.3f} MW")
     print(f"Effectiveness: {cond_result['effectiveness']:.3f}")
 
-    print("="*90 + "\n")
+    print("=" * 90 + "\n")
 
 
 if __name__ == "__main__":

@@ -25,9 +25,9 @@ class MoistAir:
     # Constants
     P_ATM = 101325  # Pa, standard atmospheric pressure
     R_DA = 287.055  # J/(kg·K), gas constant for dry air
-    R_WV = 461.52   # J/(kg·K), gas constant for water vapor
-    CP_DA = 1006    # J/(kg·K), specific heat of dry air at constant pressure
-    CP_WV = 1860    # J/(kg·K), specific heat of water vapor at constant pressure
+    R_WV = 461.52  # J/(kg·K), gas constant for water vapor
+    CP_DA = 1006  # J/(kg·K), specific heat of dry air at constant pressure
+    CP_WV = 1860  # J/(kg·K), specific heat of water vapor at constant pressure
     H_FG_0 = 2501000  # J/kg, latent heat of vaporization at 0°C
 
     @staticmethod
@@ -69,7 +69,7 @@ class MoistAir:
             C5 = 2.0747825e-9
             C6 = -9.4840240e-13
 
-        ln_Pws = C1/T_K + C2 + C3*T_K + C4*T_K**2 + C5*T_K**3 + C6*math.log(T_K)
+        ln_Pws = C1 / T_K + C2 + C3 * T_K + C4 * T_K**2 + C5 * T_K**3 + C6 * math.log(T_K)
         P_sat = math.exp(ln_Pws)
 
         return P_sat
@@ -292,18 +292,20 @@ class PsychrometricState:
 
     def __repr__(self):
         """String representation of psychrometric state."""
-        return (f"PsychrometricState(T_db={self.T_db:.1f}°C, "
-                f"w={self.w:.6f} kg/kg, RH={self.RH*100:.1f}%, "
-                f"h={self.h:.0f} J/kg)")
+        return (
+            f"PsychrometricState(T_db={self.T_db:.1f}°C, "
+            f"w={self.w:.6f} kg/kg, RH={self.RH*100:.1f}%, "
+            f"h={self.h:.0f} J/kg)"
+        )
 
 
 def test_psychrometrics():
     """
     Test psychrometric calculations with known values.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PSYCHROMETRIC PROPERTIES TEST")
-    print("="*70)
+    print("=" * 70)
 
     # Test case 1: Standard conditions (25°C, 50% RH)
     print("\nTest 1: Standard conditions (25°C, 50% RH)")
@@ -331,7 +333,7 @@ def test_psychrometrics():
     print(f"  RH = {state3.RH*100:.1f}%")
     print(f"  h = {state3.h:.1f} J/kg")
 
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
 
 
 if __name__ == "__main__":

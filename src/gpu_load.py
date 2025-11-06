@@ -151,14 +151,14 @@ class GPULoad:
         constraint_ok = self.check_temperature_constraint(T_out)
 
         return {
-            'component': 'GPU Load',
-            'gpu_model': self.gpu_model,
-            'num_gpus': self.num_gpus,
-            'Q_load_MW': Q / 1e6,
-            'm_dot_kg_s': m_dot,
-            'T_in_C': T_in,
-            'T_out_C': T_out,
-            'delta_T_C': T_out - T_in,
-            'max_temp_C': self.max_temp,
-            'constraint_satisfied': constraint_ok
+            "component": "GPU Load",
+            "gpu_model": self.gpu_model,
+            "num_gpus": self.num_gpus,
+            "Q_load_MW": Q / 1e6,
+            "m_dot_kg_s": m_dot,
+            "T_in_C": T_in,
+            "T_out_C": T_out,
+            "delta_T_C": T_out - T_in,
+            "max_temp_C": self.max_temp,
+            "constraint_satisfied": constraint_ok,
         }

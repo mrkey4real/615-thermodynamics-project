@@ -8,17 +8,13 @@ Refactored to use component-level thermodynamic modeling:
 - CoolingTower: Psychrometric analysis with air/water mass/energy balances
 """
 
-import json
-import os
-import numpy as np
-
 # Handle both relative and absolute imports
 try:
-    from .refrigerant_cycle import VaporCompressionCycle, HeatExchanger, COOLPROP_AVAILABLE
     from .psychrometrics import MoistAir, PsychrometricState
+    from .refrigerant_cycle import COOLPROP_AVAILABLE, HeatExchanger, VaporCompressionCycle
 except ImportError:
-    from refrigerant_cycle import VaporCompressionCycle, HeatExchanger, COOLPROP_AVAILABLE
-    from psychrometrics import MoistAir, PsychrometricState
+    from psychrometrics import PsychrometricState
+    from refrigerant_cycle import COOLPROP_AVAILABLE, HeatExchanger, VaporCompressionCycle
 
 
 class Chiller:
@@ -50,10 +46,17 @@ class Chiller:
         T_cond: Condenser saturation temperature (°C)
     """
 
-    def __init__(self, rated_capacity_mw, rated_cop, t_chw_supply,
-                 refrigerant='R134a', eta_is_comp=0.80,
-                 evap_effectiveness=0.85, cond_effectiveness=0.85,
-                 curves_file=None):
+    def __init__(
+        self,
+        rated_capacity_mw,
+        rated_cop,
+        t_chw_supply,
+        refrigerant="R134a",
+        eta_is_comp=0.80,
+        evap_effectiveness=0.85,
+        cond_effectiveness=0.85,
+        curves_file=None,
+    ):
         """
         Initialize chiller module with full thermodynamic cycle modeling.
 
@@ -72,8 +75,10 @@ class Chiller:
             ImportError: If CoolProp is not available
         """
         if not COOLPROP_AVAILABLE:
-            raise ImportError("CoolProp is required for refrigeration cycle modeling. "
-                            "Install with: pip install CoolProp")
+            raise ImportError(
+                "CoolProp is required for refrigeration cycle modeling. "
+                "Install with: pip install CoolProp"
+            )
 
         if rated_capacity_mw <= 0:
             raise ValueError(f"Invalid rated_capacity_mw: {rated_capacity_mw}, must be > 0")
@@ -93,7 +98,7 @@ class Chiller:
             refrigerant=refrigerant,
             eta_is_comp=eta_is_comp,
             superheat_evap=5.0,  # 5°C superheat at evaporator outlet
-            subcool_cond=3.0      # 3°C subcooling at condenser outlet
+            subcool_cond=3.0,  # 3°C subcooling at condenser outlet
         )
 
         # Heat exchangers
@@ -102,9 +107,11 @@ class Chiller:
 
         # Approximate specific heats for refrigerant (will be refined in calculations)
         self.cp_ref_liquid = 1400  # J/(kg·K), approximate for R134a liquid
-        self.cp_ref_vapor = 1200   # J/(kg·K), approximate for R134a vapor
+        self.cp_ref_vapor = 1200  # J/(kg·K), approximate for R134a vapor
 
-    def solve_energy_balance(self, q_evap, m_dot_chw, m_dot_cw, t_cw_in, t_chw_return=None, max_iter=20, tolerance=0.1):
+    def solve_energy_balance(
+        self, q_evap, m_dot_chw, m_dot_cw, t_cw_in, t_chw_return=None, max_iter=20, tolerance=0.1
+    ):
         """
         Solve complete chiller energy balance using refrigeration cycle and HX models.
 
@@ -158,16 +165,16 @@ class Chiller:
             # Step 1: Solve refrigeration cycle
             try:
                 cycle_result = self.ref_cycle.solve(
-                    T_evap_C=T_evap,
-                    T_cond_C=T_cond,
-                    Q_evap_required=q_evap
+                    T_evap_C=T_evap, T_cond_C=T_cond, Q_evap_required=q_evap
                 )
             except Exception as e:
-                raise ValueError(f"Refrigeration cycle solution failed at iteration {iteration}: {e}")
+                raise ValueError(
+                    f"Refrigeration cycle solution failed at iteration {iteration}: {e}"
+                )
 
-            m_dot_ref = cycle_result['m_dot_ref_kg_s']
-            q_cond_ref = cycle_result['Q_cond_W']
-            w_comp = cycle_result['W_comp_W']
+            m_dot_ref = cycle_result["m_dot_ref_kg_s"]
+            q_cond_ref = cycle_result["Q_cond_W"]
+            w_comp = cycle_result["W_comp_W"]
 
             # Step 2: Verify evaporator energy balance and pinch points
             # Water side: being cooled from t_chw_return to t_chw_supply
@@ -207,53 +214,51 @@ class Chiller:
 
             if delta_T_evap < tolerance and delta_T_cond < tolerance:
                 # Converged
-                cop = cycle_result['COP']
+                cop = cycle_result["COP"]
                 plr = q_evap / self.rated_capacity
 
                 return {
-                    'component': 'Chiller (Thermodynamic Cycle)',
-                    'refrigerant': self.refrigerant,
-                    'converged': True,
-                    'iterations': iteration + 1,
-
+                    "component": "Chiller (Thermodynamic Cycle)",
+                    "refrigerant": self.refrigerant,
+                    "converged": True,
+                    "iterations": iteration + 1,
                     # Performance
-                    'Q_evap_MW': q_evap / 1e6,
-                    'Q_cond_MW': q_cond_ref / 1e6,
-                    'W_comp_MW': w_comp / 1e6,
-                    'COP': cop,
-                    'PLR': plr,
-
+                    "Q_evap_MW": q_evap / 1e6,
+                    "Q_cond_MW": q_cond_ref / 1e6,
+                    "W_comp_MW": w_comp / 1e6,
+                    "COP": cop,
+                    "PLR": plr,
                     # Chilled water side
-                    'T_chw_supply_C': self.t_chw_supply,
-                    'T_chw_return_C': t_chw_return,
-                    'delta_T_chw_C': t_chw_return - self.t_chw_supply,
-                    'm_dot_chw_kg_s': m_dot_chw,
-
+                    "T_chw_supply_C": self.t_chw_supply,
+                    "T_chw_return_C": t_chw_return,
+                    "delta_T_chw_C": t_chw_return - self.t_chw_supply,
+                    "m_dot_chw_kg_s": m_dot_chw,
                     # Condenser water side
-                    'T_cw_in_C': t_cw_in,
-                    'T_cw_out_C': t_cw_out,
-                    'delta_T_cw_C': t_cw_out - t_cw_in,
-                    'm_dot_cw_kg_s': m_dot_cw,
-
+                    "T_cw_in_C": t_cw_in,
+                    "T_cw_out_C": t_cw_out,
+                    "delta_T_cw_C": t_cw_out - t_cw_in,
+                    "m_dot_cw_kg_s": m_dot_cw,
                     # Refrigerant side
-                    'T_evap_sat_C': T_evap,
-                    'T_cond_sat_C': T_cond,
-                    'm_dot_ref_kg_s': m_dot_ref,
-                    'P_evap_kPa': cycle_result['P_evap_Pa'] / 1000,
-                    'P_cond_kPa': cycle_result['P_cond_Pa'] / 1000,
-                    'compression_ratio': cycle_result['compression_ratio'],
-
+                    "T_evap_sat_C": T_evap,
+                    "T_cond_sat_C": T_cond,
+                    "m_dot_ref_kg_s": m_dot_ref,
+                    "P_evap_kPa": cycle_result["P_evap_Pa"] / 1000,
+                    "P_cond_kPa": cycle_result["P_cond_Pa"] / 1000,
+                    "compression_ratio": cycle_result["compression_ratio"],
                     # Energy balance check
-                    'energy_balance_error_pct': abs(q_cond_ref - (q_evap + w_comp)) / q_cond_ref * 100,
-
+                    "energy_balance_error_pct": abs(q_cond_ref - (q_evap + w_comp))
+                    / q_cond_ref
+                    * 100,
                     # Heat exchanger effectiveness
-                    'evap_effectiveness': evap_effectiveness,
-                    'cond_effectiveness': cond_effectiveness
+                    "evap_effectiveness": evap_effectiveness,
+                    "cond_effectiveness": cond_effectiveness,
                 }
 
         # Did not converge
-        raise ValueError(f"Chiller solution did not converge after {max_iter} iterations. "
-                       f"Last changes: ΔT_evap={delta_T_evap:.3f}°C, ΔT_cond={delta_T_cond:.3f}°C")
+        raise ValueError(
+            f"Chiller solution did not converge after {max_iter} iterations. "
+            f"Last changes: ΔT_evap={delta_T_evap:.3f}°C, ΔT_cond={delta_T_cond:.3f}°C"
+        )
 
 
 class CoolingTower:
@@ -311,7 +316,9 @@ class CoolingTower:
         if drift_rate < 0 or drift_rate > 0.01:
             raise ValueError(f"Invalid drift_rate: {drift_rate}, must be between 0 and 0.01")
         if air_to_water_ratio <= 0 or air_to_water_ratio > 5:
-            raise ValueError(f"Invalid air_to_water_ratio: {air_to_water_ratio}, must be between 0 and 5")
+            raise ValueError(
+                f"Invalid air_to_water_ratio: {air_to_water_ratio}, must be between 0 and 5"
+            )
 
         self.approach = approach_temp
         self.coc = coc
@@ -522,56 +529,54 @@ class CoolingTower:
         # Check if energy balance is reasonable (< 10% error)
         if energy_balance_error > 15.0:
             import warnings
-            warnings.warn(f"Cooling tower energy balance error {energy_balance_error:.1f}% exceeds 15%. "
-                        f"Check air/water ratio or psychrometric assumptions.")
+
+            warnings.warn(
+                f"Cooling tower energy balance error {energy_balance_error:.1f}% exceeds 15%. "
+                f"Check air/water ratio or psychrometric assumptions."
+            )
 
         # Fan power
         w_fan = self.calculate_fan_power(q_cond)
 
         # Step 7: Return complete solution
         return {
-            'component': 'Cooling Tower (Psychrometric)',
-            'Q_cond_MW': q_cond / 1e6,
-            'Q_water_MW': q_water / 1e6,
-            'Q_air_MW': q_air / 1e6,
-
+            "component": "Cooling Tower (Psychrometric)",
+            "Q_cond_MW": q_cond / 1e6,
+            "Q_water_MW": q_water / 1e6,
+            "Q_air_MW": q_air / 1e6,
             # Water side
-            'T_water_in_C': t_in,
-            'T_water_out_C': t_out,
-            'Range_C': delta_t,
-            'Approach_C': self.approach,
-            'm_dot_cw_kg_s': m_dot_cw,
-
+            "T_water_in_C": t_in,
+            "T_water_out_C": t_out,
+            "Range_C": delta_t,
+            "Approach_C": self.approach,
+            "m_dot_cw_kg_s": m_dot_cw,
             # Air side
-            'T_db_in_C': air_in.T_db,
-            'T_wb_in_C': t_wb,
-            'T_db_out_C': air_out.T_db,
-            'RH_in': air_in.RH,
-            'RH_out': air_out.RH,
-            'w_in_kg_kg': air_in.w,
-            'w_out_kg_kg': air_out.w,
-            'h_in_J_kg': air_in.h,
-            'h_out_J_kg': air_out.h,
-            'm_dot_da_kg_s': m_dot_da,
-            'air_to_water_ratio': self.air_to_water_ratio,
-
+            "T_db_in_C": air_in.T_db,
+            "T_wb_in_C": t_wb,
+            "T_db_out_C": air_out.T_db,
+            "RH_in": air_in.RH,
+            "RH_out": air_out.RH,
+            "w_in_kg_kg": air_in.w,
+            "w_out_kg_kg": air_out.w,
+            "h_in_J_kg": air_in.h,
+            "h_out_J_kg": air_out.h,
+            "m_dot_da_kg_s": m_dot_da,
+            "air_to_water_ratio": self.air_to_water_ratio,
             # Mass balances
-            'm_evap_kg_s': m_evap,
-            'm_evap_energy_kg_s': m_evap_energy,
-            'm_drift_kg_s': m_drift,
-            'm_blowdown_kg_s': m_blowdown,
-            'm_makeup_kg_s': m_makeup,
-            'm_makeup_L_s': m_makeup,
-            'm_makeup_L_hr': m_makeup * 3600,
-            'COC': self.coc,
-
+            "m_evap_kg_s": m_evap,
+            "m_evap_energy_kg_s": m_evap_energy,
+            "m_drift_kg_s": m_drift,
+            "m_blowdown_kg_s": m_blowdown,
+            "m_makeup_kg_s": m_makeup,
+            "m_makeup_L_s": m_makeup,
+            "m_makeup_L_hr": m_makeup * 3600,
+            "COC": self.coc,
             # Performance
-            'W_fan_MW': w_fan / 1e6,
-            'energy_balance_error_pct': energy_balance_error,
-
+            "W_fan_MW": w_fan / 1e6,
+            "energy_balance_error_pct": energy_balance_error,
             # Thermodynamic states
-            'air_inlet_state': air_in,
-            'air_outlet_state': air_out
+            "air_inlet_state": air_in,
+            "air_outlet_state": air_out,
         }
 
 
@@ -598,16 +603,20 @@ class CoolingTowerOptimized(CoolingTower):
             ValueError: If parameters are invalid
         """
         if makeup_silica_ppm <= 0 or makeup_silica_ppm > 100:
-            raise ValueError(f"Invalid makeup_silica_ppm: {makeup_silica_ppm}, must be between 0 and 100")
+            raise ValueError(
+                f"Invalid makeup_silica_ppm: {makeup_silica_ppm}, must be between 0 and 100"
+            )
         if max_silica_ppm <= makeup_silica_ppm:
-            raise ValueError(f"max_silica_ppm ({max_silica_ppm}) must be > makeup_silica_ppm ({makeup_silica_ppm})")
+            raise ValueError(
+                f"max_silica_ppm ({max_silica_ppm}) must be > makeup_silica_ppm ({makeup_silica_ppm})"
+            )
 
         # Calculate maximum COC based on silica limit
         max_coc = max_silica_ppm / makeup_silica_ppm
 
         # Override COC if not specified
-        if 'coc' not in kwargs:
-            kwargs['coc'] = max_coc
+        if "coc" not in kwargs:
+            kwargs["coc"] = max_coc
 
         super().__init__(**kwargs)
 
@@ -635,8 +644,8 @@ class CoolingTowerOptimized(CoolingTower):
         reduction = (bd_fraction_baseline - bd_fraction_optimized) / bd_fraction_baseline
 
         return {
-            'baseline_COC': baseline_coc,
-            'optimized_COC': self.coc,
-            'blowdown_reduction_pct': reduction * 100,
-            'max_silica_limit_ppm': self.max_silica_ppm
+            "baseline_COC": baseline_coc,
+            "optimized_COC": self.coc,
+            "blowdown_reduction_pct": reduction * 100,
+            "max_silica_limit_ppm": self.max_silica_ppm,
         }
