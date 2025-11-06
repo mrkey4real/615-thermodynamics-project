@@ -270,54 +270,67 @@ class Chiller:
 
 class CoolingTower:
     """
-    Models induced-draft cooling tower using transpiration cooling.
+    Models induced-draft cooling tower using psychrometric analysis.
+
+    Component-Level Modeling:
+        - Air side: Inlet/outlet psychrometric states (T_db, w, h, RH)
+        - Water side: Inlet/outlet temperatures and mass flow
+        - Mass balance: Air + makeup = Air + evap + drift + blowdown
+        - Energy balance: Q_water = Q_air + evaporation enthalpy
+
+    Thermodynamic States:
+        Air inlet: T_db, T_wb (ambient conditions) → w_in, h_in
+        Air outlet: Saturated at T_water_out → w_out, h_out
+        Water inlet: T_in, mass flow m_cw
+        Water outlet: T_out (= T_wb + Approach)
+
+    Mass Balances:
+        Dry air: m_da_in = m_da_out (constant)
+        Water vapor: m_da*(w_out - w_in) = m_evap
+        Liquid water: m_evap + m_drift + m_blowdown = m_makeup
 
     Energy Balance:
-        Q = m_dot_cw * cp * (T_in - T_out)
-        Q = m_evap * h_fg
-
-    Water Balance:
-        m_makeup = m_evap + m_drift + m_blowdown
-        m_blowdown = m_evap / (COC - 1)
+        Water side: Q = m_cw * cp_w * (T_in - T_out)
+        Air side: Q = m_da * (h_out - h_in)
+        Evaporation: Q_evap = m_evap * h_fg
 
     Variables:
-        Q_cond: Heat rejection load (W)
-        T_in: Inlet water temperature (C) [State 9]
-        T_out: Outlet water temperature (C) [State 8]
-        T_wb: Wet bulb temperature (C)
-        Approach: T_out - T_wb (C)
-        Range: T_in - T_out (C)
-        COC: Cycles of concentration (-)
+        m_da: Dry air mass flow rate (kg_da/s)
+        m_cw: Circulating water flow (kg/s)
         m_evap: Evaporation loss (kg/s)
         m_drift: Drift loss (kg/s)
         m_blowdown: Blowdown loss (kg/s)
         m_makeup: Total makeup water (kg/s)
     """
 
-    def __init__(self, approach_temp, coc, drift_rate=0.00001):
+    def __init__(self, approach_temp, coc, drift_rate=0.00001, air_to_water_ratio=1.2):
         """
-        Initialize cooling tower module.
+        Initialize cooling tower module with psychrometric modeling.
 
         Args:
-            approach_temp: Approach temperature T_out - T_wb (C)
+            approach_temp: Approach temperature T_out - T_wb (°C)
             coc: Cycles of concentration (-)
             drift_rate: Drift as fraction of circulating water (-)
+            air_to_water_ratio: Air mass flow to water mass flow ratio (L/L for ρ≈1)
 
         Raises:
             ValueError: If parameters are invalid
         """
         if approach_temp <= 0 or approach_temp > 20:
-            raise ValueError(f"Invalid approach_temp: {approach_temp}, must be between 0 and 20 C")
+            raise ValueError(f"Invalid approach_temp: {approach_temp}, must be between 0 and 20 °C")
         if coc < 2 or coc > 10:
             raise ValueError(f"Invalid coc: {coc}, must be between 2 and 10")
         if drift_rate < 0 or drift_rate > 0.01:
             raise ValueError(f"Invalid drift_rate: {drift_rate}, must be between 0 and 0.01")
+        if air_to_water_ratio <= 0 or air_to_water_ratio > 5:
+            raise ValueError(f"Invalid air_to_water_ratio: {air_to_water_ratio}, must be between 0 and 5")
 
         self.approach = approach_temp
         self.coc = coc
         self.drift_rate = drift_rate
-        self.cp_water = 4186  # J/(kg-K)
-        self.h_fg = 2260e3  # J/kg (latent heat at ~30 C)
+        self.air_to_water_ratio = air_to_water_ratio
+        self.cp_water = 4186  # J/(kg·K)
+        self.h_fg = 2260e3  # J/kg (latent heat at ~30°C, approximate)
 
     def calculate_outlet_temp(self, t_wb):
         """
@@ -421,63 +434,156 @@ class CoolingTower:
         fan_power_fraction = 0.007
         return q_cond * fan_power_fraction
 
-    def solve(self, q_cond, m_dot_cw, t_in, t_wb):
+    def solve(self, q_cond, m_dot_cw, t_in, t_wb, t_db=None, RH_in=None):
         """
-        Solve complete cooling tower performance.
+        Solve complete cooling tower performance using psychrometric analysis.
+
+        Solution procedure:
+        1. Calculate water outlet temperature: T_out = T_wb + Approach
+        2. Determine air inlet psychrometric state (T_db, T_wb) → (w_in, h_in)
+        3. Assume air outlet is saturated at T_out → (w_out, h_out)
+        4. Calculate dry air mass flow rate from water/air ratio
+        5. Solve mass balances for evaporation, drift, blowdown
+        6. Verify energy balance: Q_water = Q_air
+        7. Check thermodynamic feasibility
 
         Args:
             q_cond: Heat rejection load (W)
             m_dot_cw: Circulating water flow rate (kg/s)
-            t_in: Inlet water temperature (C) [State 9]
-            t_wb: Ambient wet bulb temperature (C)
+            t_in: Inlet water temperature (°C) [State 9]
+            t_wb: Ambient wet bulb temperature (°C)
+            t_db: Ambient dry bulb temperature (°C), if None estimated from T_wb
+            RH_in: Ambient relative humidity (0-1), if None calculated from T_db, T_wb
 
         Returns:
-            dict: Complete performance data
+            dict: Complete performance data with psychrometric states
 
         Raises:
-            ValueError: If parameters are invalid
+            ValueError: If parameters are invalid or solution is infeasible
         """
         if q_cond <= 0:
             raise ValueError(f"Invalid q_cond: {q_cond}, must be > 0")
         if m_dot_cw <= 0:
             raise ValueError(f"Invalid m_dot_cw: {m_dot_cw}, must be > 0")
         if t_in < 0 or t_in >= 100:
-            raise ValueError(f"Invalid t_in: {t_in}, must be between 0 and 100 C")
+            raise ValueError(f"Invalid t_in: {t_in}, must be between 0 and 100 °C")
 
-        # Temperature calculations
+        # Step 1: Water side temperatures
         t_out = self.calculate_outlet_temp(t_wb)
         delta_t = t_in - t_out  # Range
 
-        # Water consumption
-        m_evap = self.calculate_evaporation_rate(q_cond, m_dot_cw, delta_t)
+        if delta_t <= 0:
+            raise ValueError(f"Water inlet temp {t_in}°C must be > outlet temp {t_out}°C")
+
+        # Step 2: Air inlet psychrometric state
+        # If T_db not provided, estimate from typical T_db - T_wb relationship
+        if t_db is None:
+            # Typical depression: T_db - T_wb ≈ 5-15°C depending on humidity
+            # For moderate humidity (~50%), depression ~ 10°C
+            t_db = t_wb + 10.0
+
+        # Create air inlet state
+        try:
+            air_in = PsychrometricState(T_db_C=t_db, T_wb_C=t_wb)
+        except Exception as e:
+            raise ValueError(f"Failed to calculate air inlet state: {e}")
+
+        # Step 3: Air outlet state (assume saturated at water outlet temperature)
+        # This is a standard assumption: air leaves nearly saturated
+        try:
+            air_out = PsychrometricState(T_db_C=t_out, RH=0.95)  # 95% RH, nearly saturated
+        except Exception as e:
+            raise ValueError(f"Failed to calculate air outlet state: {e}")
+
+        # Step 4: Air mass flow rate
+        # L/G ratio (liquid to gas): typically 0.8-1.5
+        # We use air_to_water_ratio which is G/L
+        m_dot_air_total = m_dot_cw * self.air_to_water_ratio  # Total moist air
+        # Dry air mass flow (approximately total air mass, since w << 1)
+        m_dot_da = m_dot_air_total / (1 + air_in.w)  # kg_da/s
+
+        # Step 5: Mass balances
+        # Evaporation from humidity ratio change
+        m_evap_air = m_dot_da * (air_out.w - air_in.w)  # kg_water/s
+
+        # Also calculate evaporation from energy balance (for verification)
+        m_evap_energy = q_cond / self.h_fg  # kg/s
+
+        # Use air-side calculation as primary (more accurate for cooling towers)
+        m_evap = m_evap_air
+
+        # Drift loss
         m_drift = self.calculate_drift_loss(m_dot_cw)
+
+        # Blowdown
         m_blowdown = self.calculate_blowdown_rate(m_evap)
+
+        # Makeup water
         m_makeup = self.calculate_makeup_water(m_evap, m_drift, m_blowdown)
 
-        # Power consumption
+        # Step 6: Energy balances
+        # Water side
+        q_water = m_dot_cw * self.cp_water * delta_t
+
+        # Air side
+        q_air = m_dot_da * (air_out.h - air_in.h)
+
+        # Energy balance error
+        energy_balance_error = abs(q_water - q_air) / q_water * 100
+
+        # Check if energy balance is reasonable (< 10% error)
+        if energy_balance_error > 15.0:
+            import warnings
+            warnings.warn(f"Cooling tower energy balance error {energy_balance_error:.1f}% exceeds 15%. "
+                        f"Check air/water ratio or psychrometric assumptions.")
+
+        # Fan power
         w_fan = self.calculate_fan_power(q_cond)
 
-        # Energy balance check
-        q_check = m_dot_cw * self.cp_water * delta_t
-        energy_balance_error = abs(q_cond - q_check) / q_cond * 100
-
+        # Step 7: Return complete solution
         return {
-            'component': 'Cooling Tower',
+            'component': 'Cooling Tower (Psychrometric)',
             'Q_cond_MW': q_cond / 1e6,
-            'T_in_C': t_in,
-            'T_out_C': t_out,
-            'T_wb_C': t_wb,
-            'Approach_C': self.approach,
+            'Q_water_MW': q_water / 1e6,
+            'Q_air_MW': q_air / 1e6,
+
+            # Water side
+            'T_water_in_C': t_in,
+            'T_water_out_C': t_out,
             'Range_C': delta_t,
-            'W_fan_MW': w_fan / 1e6,
+            'Approach_C': self.approach,
+            'm_dot_cw_kg_s': m_dot_cw,
+
+            # Air side
+            'T_db_in_C': air_in.T_db,
+            'T_wb_in_C': t_wb,
+            'T_db_out_C': air_out.T_db,
+            'RH_in': air_in.RH,
+            'RH_out': air_out.RH,
+            'w_in_kg_kg': air_in.w,
+            'w_out_kg_kg': air_out.w,
+            'h_in_J_kg': air_in.h,
+            'h_out_J_kg': air_out.h,
+            'm_dot_da_kg_s': m_dot_da,
+            'air_to_water_ratio': self.air_to_water_ratio,
+
+            # Mass balances
             'm_evap_kg_s': m_evap,
+            'm_evap_energy_kg_s': m_evap_energy,
             'm_drift_kg_s': m_drift,
             'm_blowdown_kg_s': m_blowdown,
             'm_makeup_kg_s': m_makeup,
-            'm_makeup_L_s': m_makeup,  # 1 kg water ≈ 1 L
+            'm_makeup_L_s': m_makeup,
             'm_makeup_L_hr': m_makeup * 3600,
             'COC': self.coc,
-            'energy_balance_error_pct': energy_balance_error
+
+            # Performance
+            'W_fan_MW': w_fan / 1e6,
+            'energy_balance_error_pct': energy_balance_error,
+
+            # Thermodynamic states
+            'air_inlet_state': air_in,
+            'air_outlet_state': air_out
         }
 
 
