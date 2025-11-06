@@ -421,7 +421,10 @@ class HeatExchanger:
         if delta_T1 > 0 and delta_T2 > 0:
             import math
 
-            LMTD = (delta_T1 - delta_T2) / math.log(delta_T1 / delta_T2)
+            if math.isclose(delta_T1, delta_T2, rel_tol=1e-9, abs_tol=1e-6):
+                LMTD = delta_T1
+            else:
+                LMTD = (delta_T1 - delta_T2) / math.log(delta_T1 / delta_T2)
         else:
             LMTD = 0
 
