@@ -1,0 +1,37 @@
+{
+  "description": "ASHRAE Standard 90.1 performance curves for centrifugal water-cooled chiller (Path A)",
+  "source": "ASHRAE Standard 90.1-2019",
+  "chiller_type": "Centrifugal Water-Cooled",
+  "rated_conditions": {
+    "chilled_water_supply_temp_C": 6.7,
+    "condenser_water_entering_temp_C": 29.4,
+    "rated_cop": 6.1
+  },
+  "CapFT": {
+    "description": "Capacity as function of temperature",
+    "equation": "CapFT = a + b*T_chw + c*T_chw^2 + d*T_cw + e*T_cw^2 + f*T_chw*T_cw",
+    "a": 0.9990653,
+    "b": -0.0009390,
+    "c": -0.0000360,
+    "d": 0.0014230,
+    "e": 0.0000440,
+    "f": -0.0002480
+  },
+  "EIRFT": {
+    "description": "Energy Input Ratio (EIR) as function of temperature",
+    "equation": "EIRFT = a + b*T_chw + c*T_chw^2 + d*T_cw + e*T_cw^2 + f*T_chw*T_cw",
+    "a": 0.5470531,
+    "b": -0.0137916,
+    "c": 0.0005135,
+    "d": 0.0095332,
+    "e": 0.0002617,
+    "f": -0.0005560
+  },
+  "EIRFPLR": {
+    "description": "EIR as function of part load ratio",
+    "equation": "EIRFPLR = a + b*PLR + c*PLR^2",
+    "a": 0.0722504,
+    "b": 0.6033590,
+    "c": 0.3244080
+  }
+}
