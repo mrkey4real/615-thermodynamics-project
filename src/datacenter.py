@@ -4,9 +4,15 @@ DataCenter System Integration Module
 Integrates all components into system-level model with energy balance calculations.
 """
 
-from .gpu_load import GPULoad
-from .building_load import BuildingLoad
-from .hvac_system import Chiller, CoolingTower, CoolingTowerOptimized
+# Handle both relative and absolute imports
+try:
+    from .gpu_load import GPULoad
+    from .building_load import BuildingLoad
+    from .hvac_system import Chiller, CoolingTower, CoolingTowerOptimized
+except ImportError:
+    from gpu_load import GPULoad
+    from building_load import BuildingLoad
+    from hvac_system import Chiller, CoolingTower, CoolingTowerOptimized
 
 
 class DataCenter:
