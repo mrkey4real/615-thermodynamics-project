@@ -6,7 +6,7 @@ Provides utility functions for unit conversions, validation, and weather data lo
 
 import csv
 import json
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 
 class WeatherDataLoader:
@@ -50,7 +50,7 @@ class WeatherDataLoader:
             ValueError: If CSV format is invalid
         """
         try:
-            with open(self.csv_file_path, 'r') as f:
+            with open(self.csv_file_path) as f:
                 reader = csv.DictReader(f)
                 self.headers = reader.fieldnames
 
@@ -63,14 +63,11 @@ class WeatherDataLoader:
                 # Load data
                 for row in reader:
                     try:
-                        t_wb = float(row[self.column_mapping['wet_bulb']])
-                        timestamp = row.get(self.column_mapping.get('timestamp', ''), '')
+                        t_wb = float(row[self.column_mapping["wet_bulb"]])
+                        timestamp = row.get(self.column_mapping.get("timestamp", ""), "")
 
-                        self.data.append({
-                            'timestamp': timestamp,
-                            'wet_bulb_temp_C': t_wb
-                        })
-                    except (ValueError, KeyError) as e:
+                        self.data.append({"timestamp": timestamp, "wet_bulb_temp_C": t_wb})
+                    except (ValueError, KeyError):
                         # Skip invalid rows
                         continue
 
@@ -89,14 +86,19 @@ class WeatherDataLoader:
         """
         # Possible column names for wet bulb temperature
         wb_candidates = [
-            'wet_bulb_temp_C', 't_wb', 'wet_bulb', 'wetbulb', 'wb_temp',
-            'temperature_wb', 'T_wb', 'wet_bulb_temperature', 'WetBulbTemp'
+            "wet_bulb_temp_C",
+            "t_wb",
+            "wet_bulb",
+            "wetbulb",
+            "wb_temp",
+            "temperature_wb",
+            "T_wb",
+            "wet_bulb_temperature",
+            "WetBulbTemp",
         ]
 
         # Possible column names for timestamp
-        time_candidates = [
-            'timestamp', 'datetime', 'time', 'date', 'DateTime', 'Time', 'Date'
-        ]
+        time_candidates = ["timestamp", "datetime", "time", "date", "DateTime", "Time", "Date"]
 
         # Find wet bulb column
         wb_col = None
@@ -128,10 +130,7 @@ class WeatherDataLoader:
                 time_col = candidate
                 break
 
-        self.column_mapping = {
-            'wet_bulb': wb_col,
-            'timestamp': time_col
-        }
+        self.column_mapping = {"wet_bulb": wb_col, "timestamp": time_col}
 
     def get_data(self) -> List[Dict]:
         """
@@ -149,7 +148,7 @@ class WeatherDataLoader:
         Returns:
             list: List of wet bulb temperatures in C
         """
-        return [entry['wet_bulb_temp_C'] for entry in self.data]
+        return [entry["wet_bulb_temp_C"] for entry in self.data]
 
     def get_average_temperature(self) -> float:
         """
@@ -187,7 +186,7 @@ class WeatherDataLoader:
         if index < 0 or index >= len(self.data):
             raise IndexError(f"Index {index} out of range (0-{len(self.data)-1})")
 
-        return self.data[index]['wet_bulb_temp_C']
+        return self.data[index]["wet_bulb_temp_C"]
 
 
 def load_config(config_file_path):
@@ -205,7 +204,7 @@ def load_config(config_file_path):
         ValueError: If JSON is invalid
     """
     try:
-        with open(config_file_path, 'r') as f:
+        with open(config_file_path) as f:
             config = json.load(f)
         return config
     except FileNotFoundError:
@@ -222,9 +221,10 @@ def save_results(results, output_file_path):
         results: Results dictionary to save
         output_file_path: Path to output JSON file
     """
+
     # Convert numpy types to native Python types for JSON serialization
     def convert_to_native(obj):
-        if hasattr(obj, 'item'):  # numpy types
+        if hasattr(obj, "item"):  # numpy types
             return obj.item()
         elif isinstance(obj, dict):
             return {key: convert_to_native(value) for key, value in obj.items()}
@@ -235,7 +235,7 @@ def save_results(results, output_file_path):
 
     results_native = convert_to_native(results)
 
-    with open(output_file_path, 'w') as f:
+    with open(output_file_path, "w") as f:
         json.dump(results_native, f, indent=2)
 
 
@@ -253,10 +253,10 @@ def validate_energy_balance(results, tolerance=1.0):
     Raises:
         ValueError: If energy balance error exceeds tolerance
     """
-    q_it = results['P_IT_MW'] * 1e6
-    q_evap = results['Q_evap_MW'] * 1e6
-    q_cond = results['Q_cond_MW'] * 1e6
-    w_comp = results['W_comp_MW'] * 1e6
+    q_it = results["P_IT_MW"] * 1e6
+    q_evap = results["Q_evap_MW"] * 1e6
+    q_cond = results["Q_cond_MW"] * 1e6
+    w_comp = results["W_comp_MW"] * 1e6
 
     # Check 1: Q_evap ≈ Q_IT
     error_1 = abs(q_evap - q_it) / q_it * 100
@@ -290,12 +290,13 @@ def validate_constraints(results, gpu_max_temp=40.0, building_max_temp=25.0):
         ValueError: If any constraint is violated
     """
     checks = {
-        f'GPU temp ≤ {gpu_max_temp}°C': results['T_gpu_out_C'] <= gpu_max_temp,
-        f'Building temp ≤ {building_max_temp}°C': results['T_air_out_C'] <= building_max_temp,
-        'PUE > 1.0': results['P_IT_MW'] / (results['P_IT_MW'] + results['W_cooling_total_MW']) < 1.0 or True,
-        'COP > 0': results['COP'] > 0,
-        'COP < 10': results['COP'] < 10,
-        'Convergence achieved': results['converged']
+        f"GPU temp ≤ {gpu_max_temp}°C": results["T_gpu_out_C"] <= gpu_max_temp,
+        f"Building temp ≤ {building_max_temp}°C": results["T_air_out_C"] <= building_max_temp,
+        "PUE > 1.0": results["P_IT_MW"] / (results["P_IT_MW"] + results["W_cooling_total_MW"]) < 1.0
+        or True,
+        "COP > 0": results["COP"] > 0,
+        "COP < 10": results["COP"] < 10,
+        "Convergence achieved": results["converged"],
     }
 
     print("\nConstraint Validation:")
@@ -314,12 +315,12 @@ def validate_constraints(results, gpu_max_temp=40.0, building_max_temp=25.0):
 
 def celsius_to_fahrenheit(temp_c):
     """Convert temperature from Celsius to Fahrenheit."""
-    return temp_c * 9.0/5.0 + 32.0
+    return temp_c * 9.0 / 5.0 + 32.0
 
 
 def fahrenheit_to_celsius(temp_f):
     """Convert temperature from Fahrenheit to Celsius."""
-    return (temp_f - 32.0) * 5.0/9.0
+    return (temp_f - 32.0) * 5.0 / 9.0
 
 
 def mw_to_tons(power_mw):

@@ -118,7 +118,9 @@ class BuildingLoad:
             T_air_out_target = self.max_temp
 
         if T_air_out_target <= T_air_in:
-            raise ValueError(f"T_air_out_target ({T_air_out_target}) must be > T_air_in ({T_air_in})")
+            raise ValueError(
+                f"T_air_out_target ({T_air_out_target}) must be > T_air_in ({T_air_in})"
+            )
 
         Q = self.calculate_heat_load()
         delta_T_max = T_air_out_target - T_air_in
@@ -141,12 +143,12 @@ class BuildingLoad:
         constraint_ok = self.check_temperature_constraint(T_air_out)
 
         return {
-            'component': 'Building Load',
-            'Q_load_MW': Q / 1e6,
-            'm_dot_air_kg_s': m_dot_air,
-            'T_air_in_C': T_air_in,
-            'T_air_out_C': T_air_out,
-            'delta_T_C': T_air_out - T_air_in,
-            'max_temp_C': self.max_temp,
-            'constraint_satisfied': constraint_ok
+            "component": "Building Load",
+            "Q_load_MW": Q / 1e6,
+            "m_dot_air_kg_s": m_dot_air,
+            "T_air_in_C": T_air_in,
+            "T_air_out_C": T_air_out,
+            "delta_T_C": T_air_out - T_air_in,
+            "max_temp_C": self.max_temp,
+            "constraint_satisfied": constraint_ok,
         }
