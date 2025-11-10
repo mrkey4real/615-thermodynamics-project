@@ -213,43 +213,33 @@ class Pump:
 
 class PumpSystem:
     """
-    Models complete pump system for datacenter HVAC.
+    Models HVAC-side pump system (condenser water loop only).
 
-    Includes:
-    - Chilled water pumps (CHW loop)
-    - Condenser water pumps (CW loop)
-    - GPU coolant pumps (GPU loop)
+    IMPORTANT: This class only includes the condenser water (CW) pump,
+    which is the pump in the HVAC system between the chiller condenser
+    and the cooling tower.
+
+    The following pumps are NOT included (managed by other systems):
+    - CHW pump: Managed by building-side system
+    - GPU pump: Managed by compute/GPU cooling system
+
+    Scope:
+    - Condenser water pumps (CW loop): Chiller condenser ↔ Cooling tower
     """
 
     def __init__(
         self,
-        chw_static_head=15.0,
         cw_static_head=10.0,
-        gpu_static_head=5.0,
-        chw_efficiency=0.85,
         cw_efficiency=0.85,
-        gpu_efficiency=0.88,
     ):
         """
-        Initialize pump system.
+        Initialize HVAC pump system (CW pump only).
 
         Args:
-            chw_static_head: Chilled water pump static head (m)
             cw_static_head: Condenser water pump static head (m)
-            gpu_static_head: GPU coolant pump static head (m)
-            chw_efficiency: Chilled water pump efficiency (0-1)
             cw_efficiency: Condenser water pump efficiency (0-1)
-            gpu_efficiency: GPU coolant pump efficiency (0-1)
         """
-        # Chilled water pump
-        self.chw_pump = Pump(
-            pump_type="CHW",
-            static_head=chw_static_head,
-            equipment_head=8.0,  # Heat exchangers, chiller
-            efficiency=chw_efficiency,
-        )
-
-        # Condenser water pump
+        # Condenser water pump (only pump managed by HVAC system)
         self.cw_pump = Pump(
             pump_type="CW",
             static_head=cw_static_head,
@@ -257,44 +247,25 @@ class PumpSystem:
             efficiency=cw_efficiency,
         )
 
-        # GPU coolant pump
-        self.gpu_pump = Pump(
-            pump_type="GPU",
-            static_head=gpu_static_head,
-            equipment_head=10.0,  # Cold plates, heat exchangers
-            efficiency=gpu_efficiency,
-        )
-
-    def solve_all_pumps(self, m_dot_chw, m_dot_cw, m_dot_gpu):
+    def solve(self, m_dot_cw):
         """
-        Solve all pumps in the system.
+        Solve condenser water pump.
 
         Args:
-            m_dot_chw: Chilled water flow rate (kg/s)
             m_dot_cw: Condenser water flow rate (kg/s)
-            m_dot_gpu: GPU coolant flow rate (kg/s)
 
         Returns:
-            dict: Complete pump system performance
+            dict: CW pump performance data
         """
-        # Solve each pump
-        chw_result = self.chw_pump.solve(m_dot_chw)
+        # Solve CW pump
         cw_result = self.cw_pump.solve(m_dot_cw)
-        gpu_result = self.gpu_pump.solve(m_dot_gpu)
-
-        # Total pump power
-        P_total = (
-            chw_result["P_pump_W"] + cw_result["P_pump_W"] + gpu_result["P_pump_W"]
-        )
 
         return {
-            "component": "Pump System (All Loops)",
-            "CHW_pump": chw_result,
+            "component": "HVAC Pump System (CW Loop)",
             "CW_pump": cw_result,
-            "GPU_pump": gpu_result,
-            "P_total_W": P_total,
-            "P_total_kW": P_total / 1000,
-            "P_total_MW": P_total / 1e6,
+            "P_pump_W": cw_result["P_pump_W"],
+            "P_pump_kW": cw_result["P_pump_kW"],
+            "P_pump_MW": cw_result["P_pump_MW"],
         }
 
 
