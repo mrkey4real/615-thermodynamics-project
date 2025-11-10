@@ -247,14 +247,26 @@ class CoolingTower:
         except Exception as e:
             raise ValueError(f"Failed to calculate air outlet state: {e}")
 
-        # Step 4: Air mass flow rate
-        # L/G ratio (liquid to gas): typically 0.8-1.5
-        # We use air_to_water_ratio which is G/L
-        m_dot_air_total = m_dot_cw * self.air_to_water_ratio  # Total moist air
-        # Dry air mass flow (approximately total air mass, since w << 1)
-        m_dot_da = m_dot_air_total / (1 + air_in.w)  # kg_da/s
+        # Step 4: Calculate water-side heat rejection
+        q_water = m_dot_cw * self.cp_water * delta_t  # W
 
-        # Step 5: Mass balances
+        # Step 5: Calculate required air mass flow rate from energy balance
+        # Energy balance: Q_water = m_da * (h_out - h_in)
+        # Therefore: m_da = Q_water / (h_out - h_in)
+        delta_h_air = air_out.h - air_in.h  # J/kg_da
+
+        if delta_h_air <= 0:
+            raise ValueError(
+                f"Air enthalpy must increase through tower. "
+                f"h_in={air_in.h:.0f} J/kg, h_out={air_out.h:.0f} J/kg"
+            )
+
+        m_dot_da = q_water / delta_h_air  # kg_da/s
+
+        # Calculate actual air-to-water ratio achieved
+        actual_air_to_water_ratio = m_dot_da * (1 + air_in.w) / m_dot_cw
+
+        # Step 6: Mass balances
         # Evaporation from humidity ratio change
         m_evap_air = m_dot_da * (air_out.w - air_in.w)  # kg_water/s
 
@@ -273,23 +285,19 @@ class CoolingTower:
         # Makeup water
         m_makeup = self.calculate_makeup_water(m_evap, m_drift, m_blowdown)
 
-        # Step 6: Energy balances
-        # Water side
-        q_water = m_dot_cw * self.cp_water * delta_t
-
-        # Air side
+        # Step 7: Verify energy balance
+        # Since we calculated m_da from energy balance, error should be minimal
+        # But let's verify to catch any numerical issues
         q_air = m_dot_da * (air_out.h - air_in.h)
-
-        # Energy balance error
         energy_balance_error = abs(q_water - q_air) / q_water * 100
 
-        # Check if energy balance is reasonable (< 10% error)
-        if energy_balance_error > 15.0:
+        # Energy balance should be very small now (< 1%)
+        if energy_balance_error > 5.0:
             import warnings
 
             warnings.warn(
-                f"Cooling tower energy balance error {energy_balance_error:.1f}% exceeds 15%. "
-                f"Check air/water ratio or psychrometric assumptions."
+                f"Cooling tower energy balance error {energy_balance_error:.1f}% exceeds 5%. "
+                f"This suggests numerical issues in psychrometric calculations."
             )
 
         # Fan power
@@ -318,7 +326,8 @@ class CoolingTower:
             "h_in_J_kg": air_in.h,
             "h_out_J_kg": air_out.h,
             "m_dot_da_kg_s": m_dot_da,
-            "air_to_water_ratio": self.air_to_water_ratio,
+            "air_to_water_ratio": actual_air_to_water_ratio,
+            "air_to_water_ratio_design": self.air_to_water_ratio,
             # Mass balances
             "m_evap_kg_s": m_evap,
             "m_evap_energy_kg_s": m_evap_energy,

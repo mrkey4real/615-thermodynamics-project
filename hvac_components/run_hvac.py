@@ -69,7 +69,7 @@ class HVACSystem:
         )
 
         self.pump_system = PumpSystem(
-            chw_static_head=15.0, cw_static_head=10.0, gpu_static_head=5.0
+            cw_static_head=10.0,
         )
 
         # Store configuration
@@ -211,13 +211,11 @@ class HVACSystem:
                 f"Last change: ΔT_cw={delta_t_cw:.3f}°C"
             )
 
-        # Step 5: Solve pump system
-        pump_result = self.pump_system.solve_all_pumps(
-            m_dot_chw=m_dot_chw, m_dot_cw=m_dot_cw, m_dot_gpu=m_dot_gpu
-        )
+        # Step 5: Solve pump system (CW pump only, HVAC-side)
+        pump_result = self.pump_system.solve(m_dot_cw=m_dot_cw)
 
         # Step 6: Calculate total power consumption
-        w_pumps = pump_result["P_total_W"]
+        w_pumps = pump_result["P_pump_W"]
         w_fans = tower_result["W_fan_MW"] * 1e6
         w_total_cooling = w_comp + w_pumps + w_fans
 
@@ -246,14 +244,10 @@ class HVACSystem:
             # Power consumption
             "power": {
                 "W_comp_MW": w_comp / 1e6,
-                "W_pumps_MW": w_pumps / 1e6,
+                "W_pump_CW_MW": w_pumps / 1e6,
                 "W_fans_MW": w_fans / 1e6,
                 "W_total_cooling_MW": w_total_cooling / 1e6,
-                "pump_breakdown": {
-                    "CHW_pump_MW": pump_result["CHW_pump"]["P_pump_MW"],
-                    "CW_pump_MW": pump_result["CW_pump"]["P_pump_MW"],
-                    "GPU_pump_MW": pump_result["GPU_pump"]["P_pump_MW"],
-                },
+                "pump_details": pump_result["CW_pump"],
             },
             # Chiller performance
             "chiller": {
@@ -358,14 +352,12 @@ class HVACSystem:
 
         # Power consumption
         pwr = results["power"]
-        print(f"\n--- POWER CONSUMPTION ---")
+        print(f"\n--- POWER CONSUMPTION (HVAC-Side Only) ---")
         print(f"  Chiller Compressor:     {pwr['W_comp_MW']:>10.2f} MW")
-        print(f"  Pumps Total:            {pwr['W_pumps_MW']:>10.2f} MW")
-        print(f"    - CHW Pump:           {pwr['pump_breakdown']['CHW_pump_MW']:>10.2f} MW")
-        print(f"    - CW Pump:            {pwr['pump_breakdown']['CW_pump_MW']:>10.2f} MW")
-        print(f"    - GPU Pump:           {pwr['pump_breakdown']['GPU_pump_MW']:>10.2f} MW")
+        print(f"  CW Pump (HVAC):         {pwr['W_pump_CW_MW']:>10.2f} MW")
         print(f"  Cooling Tower Fans:     {pwr['W_fans_MW']:>10.2f} MW")
-        print(f"  TOTAL COOLING POWER:    {pwr['W_total_cooling_MW']:>10.2f} MW")
+        print(f"  TOTAL HVAC POWER:       {pwr['W_total_cooling_MW']:>10.2f} MW")
+        print(f"\n  Note: CHW pump and GPU pump are managed by building/compute systems")
 
         # Chiller
         ch = results["chiller"]
