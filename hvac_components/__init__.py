@@ -1,8 +1,4 @@
 """
-HVAC Components Module
-
-This package provides advanced thermodynamic modeling for datacenter HVAC systems.
-
 Components:
 - Chiller: Full vapor compression refrigeration cycle
 - CoolingTower: Psychrometric analysis with mass/energy balances
@@ -15,7 +11,7 @@ Usage:
     hvac = HVACSystem()
     results = hvac.solve(q_evap=1000e6, t_chw_return=15.0, ...)
 
-Author: HVAC Team
+Author: Zixuan
 Date: 2025-11-10
 Version: 1.0
 """
@@ -35,4 +31,4 @@ __all__ = [
 ]
 
 __version__ = '1.0.0'
-__author__ = 'HVAC Team'
+__author__ = 'Zixuan'

@@ -1,9 +1,4 @@
 """
-HVAC System Main Program
-
-This program integrates chiller, cooling tower, and pump systems to provide
-complete HVAC system performance analysis for datacenter cooling.
-
 Usage:
     python run_hvac.py
 
@@ -17,9 +12,6 @@ Outputs:
     - Power consumption (chiller, pumps, fans)
     - All node parameters (temperatures, flows, air properties)
     - Water consumption data
-
-Author: HVAC Team
-Date: 2025-11-10
 """
 
 from chiller import Chiller

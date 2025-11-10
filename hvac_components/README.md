@@ -4,7 +4,7 @@
 
 本模块包含数据中心冷却系统的HVAC组件，采用高级热力学建模方法，包括：
 - **冷水机（Chiller）**：基于蒸气压缩制冷循环的完整热力学计算
-- **冷却塔（Cooling Tower）**：基于湿空气心理学分析的传质传热计算
+- **冷却塔（Cooling Tower）**：基于湿空气热力学分析的传质传热计算
 - **泵系统（Pump）**：基于流体力学的泵功率计算
 - **集成系统（HVAC System）**：完整的HVAC系统集成和求解
 
@@ -16,7 +16,7 @@ hvac_components/
 ├── cooling_tower.py        # 冷却塔模块
 ├── pump.py                 # 泵系统模块
 ├── run_hvac.py             # HVAC系统主程序
-├── psychrometrics.py       # 湿空气心理学计算（依赖）
+├── psychrometrics.py       # 湿空气计算（依赖）
 ├── refrigerant_cycle.py    # 制冷循环计算（依赖）
 └── README.md               # 本文件
 ```
@@ -54,7 +54,7 @@ pip install CoolProp>=6.5.0  # 制冷剂热力学性质
 ### 2. 冷却塔（Cooling Tower）
 
 **热力学建模特点：**
-- ✅ 湿空气心理学分析：含湿量、焓值、相对湿度
+- ✅ 湿空气热力学分析：含湿量、焓值、相对湿度
 - ✅ 质量守恒：
   - 干空气守恒：ṁ_干空气,进 = ṁ_干空气,出
   - 水蒸气平衡：ṁ_蒸发 = ṁ_干空气 × (w_出 - w_进)
@@ -336,7 +336,7 @@ results['validation']
    - 满足夹点温差约束（> 3°C）
 
 ### 冷却塔
-1. **心理学计算**
+1. **热力学计算**
    ```
    含湿量：w = 0.622 × P_v / (P - P_v)
    焓值：h = cp_空气 × T + w × (h_fg + cp_水蒸气 × T)
@@ -364,35 +364,6 @@ results['validation']
    H_总 = H_静态 + H_动态 + H_设备
    Q = ṁ / ρ (体积流量)
    ```
-
-## 常见问题
-
-### Q1: 如果系统不收敛怎么办？
-检查输入参数是否合理：
-- T_chw_return 应该 > T_chw_supply
-- T_wb 应该 < T_chw_return
-- 冷却负荷应该 > 0
-
-### Q2: 能量平衡误差过大怎么办？
-- 检查流量是否合理
-- 检查温度差是否在正常范围
-- 增加迭代次数（max_iter参数）
-
-### Q3: 如何优化水消耗？
-提高浓缩倍数（COC）：
-```python
-hvac = HVACSystem(coc=6.0)  # 从5提高到6
-```
-
-### Q4: 如何修改制冷剂类型？
-```python
-chiller = Chiller(
-    rated_capacity_mw=1000,
-    rated_cop=6.1,
-    t_chw_supply=10.0,
-    refrigerant="R410A"  # 或 "R32", "R134a" 等
-)
-```
 
 ## 与建筑端对接说明
 
@@ -427,7 +398,7 @@ HVAC系统输出 → 返回建筑侧
 }
 ```
 
-## 团队协作说明
+## 说明
 
 本模块作为独立的HVAC组件，可以与其他团队成员的模块对接：
 
@@ -442,14 +413,5 @@ HVAC系统输出 → 返回建筑侧
 - ASHRAE Handbook - Fundamentals (2021)
 - CoolProp: Open-source thermodynamic property library
 - 蒸气压缩制冷循环理论
-- 湿空气心理学原理
+- 湿空气热力学原理
 
-## 联系方式
-
-如有问题或建议，请联系HVAC组负责人。
-
----
-
-**版本**: 1.0
-**日期**: 2025-11-10
-**作者**: HVAC Team
